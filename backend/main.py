@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import torch
-from parler_tts.api import ParlerTTS
+from parler_tts import ParlerTTSForConditionalGeneration as ParlerTTS
 
 app = FastAPI()
 
