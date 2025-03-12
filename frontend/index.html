@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-to-Speech</title>
+</head>
+<body>
+    <h2>Text-to-Speech (Parler-TTS)</h2>
+    <textarea id="textInput" placeholder="Enter text here"></textarea>
+    <select id="language">
+        <option value="en">Indian English</option>
+        <option value="bn">Bengali</option>
+        <option value="hi">Hindi</option>
+    </select>
+    <button onclick="generateSpeech()">Generate Speech</button>
+    <audio id="audioPlayer" controls></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
