@@ -1,36 +1,55 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from parler_tts import ParlerTTSForConditionalGeneration, ParlerTTSConfig
 import torch
-from parler_tts.modeling_parler_tts import ParlerTTSForConditionalGeneration  # Correct import
-import soundfile as sf
 import numpy as np
+import soundfile as sf
+import io
+import base64
 
 app = FastAPI()
 
-# Load the Parler-TTS model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model = ParlerTTSForConditionalGeneration.from_pretrained("parler-tts/parler_tts_indic").to(device)
+# Load Parler-TTS Model
+try:
+    config = ParlerTTSConfig()
+    model = ParlerTTSForConditionalGeneration(config)
+    model.eval()  # Set to evaluation mode (important for inference)
+except Exception as e:
+    print(f"Error loading TTS model: {e}")
+    raise RuntimeError("Failed to load Parler-TTS model")
 
-class TTSRequest(BaseModel):
-    text: str
-    language: str  # Options: "en", "bn", "hi"
+@app.get("/")
+def home():
+    return {"message": "Parler-TTS API is running successfully!"}
 
-@app.post("/synthesize/")
-async def synthesize_speech(request: TTSRequest):
+@app.post("/tts/")
+async def generate_speech(text: str):
+    """
+    Convert text to speech using Parler-TTS and return the audio as a base64-encoded string.
+    """
     try:
-        # Convert text to speech
-        inputs = {"text": request.text, "language": request.language}
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Text input cannot be empty")
+
+        # Prepare input for the model
+        inputs = model.prepare_inputs_for_generation(text)
+
         with torch.no_grad():
-            audio_tensor = model.generate(**inputs)
+            output = model(**inputs)
 
-        # Convert tensor to numpy for saving
-        audio_numpy = audio_tensor.cpu().numpy().squeeze()
+        # Convert output tensor to numpy array
+        audio_data = output.cpu().numpy().astype(np.float32)
 
-        # Save as WAV file
-        output_file = "output.wav"
-        sf.write(output_file, audio_numpy, samplerate=24000)  # 24kHz is a standard TTS sample rate
-        
-        return {"message": "Speech generated successfully!", "file": output_file}
-    
+        # Save audio to a buffer
+        buffer = io.BytesIO()
+        sf.write(buffer, audio_data, samplerate=22050, format="WAV")
+        buffer.seek(0)
+
+        # Encode the audio file as Base64
+        audio_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+
+        return {"audio_base64": audio_base64}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
+
+
